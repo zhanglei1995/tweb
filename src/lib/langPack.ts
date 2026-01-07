@@ -167,9 +167,14 @@ namespace I18n {
 
   export function loadLocalLangPack() {
     const defaultCode = App.langPackCode;
+    
+    // 根据语言代码动态加载对应的语言包
+    const langModule = defaultCode === 'zh-CN' ? '../lang.zh-CN' : '../lang';
+    const langSignModule = defaultCode === 'zh-CN' ? '../langSign.zh-CN' : '../langSign';
+    
     return Promise.all([
-      import('../lang'),
-      import('../langSign'),
+      import(langModule).catch(() => import('../lang')), // 如果中文包不存在，回退到英文
+      import(langSignModule).catch(() => import('../langSign')),
       import('../countries')
     ]).then(([lang, langSign, countries]) => {
       const strings: LangPackString[] = [];
@@ -230,7 +235,52 @@ namespace I18n {
 
   export function getLangPackAndApply(langCode: string, web?: boolean, ignoreCache?: boolean) {
     setLangCode(langCode);
+    
+    // 对于中文语言包，优先使用本地语言包，避免依赖 Telegram 服务器
+    if (langCode === 'zh-CN' || langCode === 'zh' || langCode === 'zh-TW') {
+      console.log(`%c[语言包] 使用本地语言包: ${langCode}`, 'color: #00a8ff; font-weight: bold');
+      const langModule = langCode === 'zh-CN' ? '../lang.zh-CN' : '../lang';
+      const langSignModule = langCode === 'zh-CN' ? '../langSign.zh-CN' : '../langSign';
+      
+      return Promise.all([
+        import(langModule).catch(() => import('../lang')),
+        import(langSignModule).catch(() => import('../langSign')),
+        import('../countries'),
+        polyfillPromise
+      ]).then(([localLangPack1, localLangPack2, countries, _]) => {
+        let strings: LangPackString[] = [];
+
+        [localLangPack1, localLangPack2].forEach((l) => {
+          formatLocalStrings(l.default as any, strings);
+        });
+
+        const langPack: LangPackDifference = {
+          _: 'langPackDifference',
+          from_version: 0,
+          lang_code: langCode,
+          strings,
+          version: App.langPackVersion,
+          countries: countries.default,
+          localVersion: App.langPackLocalVersion
+        };
+        
+        console.log(`%c[语言包] 本地语言包加载完成`, 'color: #00a8ff', {
+          语言代码: langCode,
+          字符串数量: strings.length,
+          版本: App.langPackVersion
+        });
+        
+        return saveLangPack(langPack, true);
+      });
+    }
+    
+    // 其他语言仍然从服务器加载
+    console.log(`%c[语言包] 从服务器下载语言包: ${langCode}`, 'color: #ff6b6b; font-weight: bold');
+    console.time(`[语言包下载] ${langCode}`);
+    
     return loadLangPack(langCode, web, ignoreCache).then(([langPack1, langPack2, localLangPack1, localLangPack2, countries, _]) => {
+      console.timeEnd(`[语言包下载] ${langCode}`);
+      
       let strings: LangPackString[] = [];
 
       [localLangPack1, localLangPack2].forEach((l) => {
@@ -242,7 +292,44 @@ namespace I18n {
       langPack1.strings = strings;
       langPack1.countries = countries;
       langPack1.localVersion = App.langPackLocalVersion;
+      
+      // 打印从服务器下载的语言包详细信息
+      console.group(`%c[语言包] 服务器语言包下载完成`, 'color: #ff6b6b; font-weight: bold');
+      console.log(langPack1)
+      console.log('语言代码:', langCode);
+      console.log('版本:', langPack1.version);
+      console.log('从版本:', langPack1.from_version);
+      console.log('总字符串数量:', strings.length);
+      console.log('服务器字符串数量:', (langPack1.strings?.length || 0) + (langPack2?.strings?.length || 0));
+      console.log('本地字符串数量:', localLangPack1.default ? Object.keys(localLangPack1.default).length : 0);
+      console.log('国家列表:', countries?.countries?.length || 0, '个国家');
+      
+      // 打印语言包详细内容
+      console.log('语言包详细内容:', {
+        langPack1: {
+          _: langPack1._,
+          lang_code: langPack1.lang_code,
+          version: langPack1.version,
+          from_version: langPack1.from_version,
+          strings_count: langPack1.strings?.length || 0,
+          // 显示前10条字符串示例
+          strings_sample: langPack1.strings?.slice(0, 10)
+        },
+        langPack2: langPack2 ? {
+          _: langPack2._,
+          lang_code: langPack2.lang_code,
+          strings_count: langPack2.strings?.length || 0,
+          strings_sample: langPack2.strings?.slice(0, 10)
+        } : null,
+        countries_sample: countries?.countries?.slice(0, 5)
+      });
+      
+      console.groupEnd();
+      
       return saveLangPack(langPack1, true);
+    }).catch((error) => {
+      console.error(`%c[语言包] 下载失败: ${langCode}`, 'color: #ff0000; font-weight: bold', error);
+      throw error;
     });
   }
 
