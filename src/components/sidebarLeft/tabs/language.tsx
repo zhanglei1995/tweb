@@ -124,6 +124,19 @@ export default class AppLanguageTab extends SliderSuperTab {
       p.languages1,
       p.languages2
     ]).then(([languages1, languages2]) => {
+      languages1.push({
+        lang_code: "zh",
+        name: "中文",
+        native_name: "中文",
+        pFlags: {
+          official: true
+        },
+        plural_code: "en",
+        strings_count: 3688,
+        translated_count: 3688,
+        translations_url: "https://translations.telegram.org/en/",
+        _: "langPackLanguage"
+      })
       const rendered: Set<string> = new Set();
       const webLangCodes = languages1.map((language) => language.lang_code);
 

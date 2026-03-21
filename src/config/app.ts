@@ -27,7 +27,7 @@ const App = {
   langPackVersion: +import.meta.env.VITE_LANG_PACK_VERSION,
   langPackLocalVersion: langPackLocalVersion,
   langPack: 'webk',
-  langPackCode: 'en',
+  langPackCode: 'zh',
   domains: MAIN_DOMAINS,
   baseDcId: 2 as TrueDcId,
   isMainDomain: MAIN_DOMAINS.includes(location.hostname),

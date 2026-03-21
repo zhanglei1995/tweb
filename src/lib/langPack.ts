@@ -176,7 +176,7 @@ namespace I18n {
     const defaultCode = App.langPackCode;
     return Promise.all([
       import('../lang'),
-      import('../langSign'),
+      defaultCode === 'zh' ? import('../langZH') : import('../langSign'),
       import('../countries')
     ]).then(([lang, langSign, countries]) => {
       const strings: LangPackString[] = [];
@@ -200,10 +200,10 @@ namespace I18n {
     web = true;
     const managers = rootScope.managers;
     return Promise.all([
-      managers.appLangPackManager.getLangPack(langCode, web ? 'web' : App.langPack, ignoreCache),
-      !web && managers.appLangPackManager.getLangPack(langCode, 'android', ignoreCache),
+      langCode !== 'zh' && managers.appLangPackManager.getLangPack(langCode, web ? 'web' : App.langPack, ignoreCache),
+      !web && langCode !== 'zh' && managers.appLangPackManager.getLangPack(langCode, 'android', ignoreCache),
       import('../lang'),
-      import('../langSign'),
+      langCode === 'zh' ? import('../langZH') : import('../langSign'),
       managers.appLangPackManager.getCountriesList(langCode, ignoreCache),
       polyfillPromise
     ]);
@@ -238,6 +238,15 @@ namespace I18n {
   export function getLangPackAndApply(langCode: string, web?: boolean, ignoreCache?: boolean) {
     setLangCode(langCode);
     return loadLangPack(langCode, web, ignoreCache).then(([langPack1, langPack2, localLangPack1, localLangPack2, countries, _]) => {
+      if (!langPack1) {
+        langPack1 = {
+          _: 'langPackDifference',
+          lang_code: langCode,
+          from_version: 0,
+          version: App.langPackVersion,
+          strings: []
+        }
+      }
       let strings: LangPackString[] = [];
 
       [localLangPack1, localLangPack2].forEach((l) => {
@@ -770,6 +779,7 @@ export function handleStateCleared() {
 
 export async function checkLangPackForUpdates() {
   const storedLangPack = await I18n.getCacheLangPack();
+  if (storedLangPack.lang_code === 'zh') return
   const difference = await rootScope.managers.appLangPackManager.getDifference(storedLangPack.lang_code, storedLangPack.version);
   if(difference.version > storedLangPack.version) {
     return handleUpdateLangPack({difference});
