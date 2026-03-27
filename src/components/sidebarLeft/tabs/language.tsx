@@ -131,10 +131,10 @@ export default class AppLanguageTab extends SliderSuperTab {
         pFlags: {
           official: true
         },
-        plural_code: "en",
+        plural_code: "zh",
         strings_count: 3688,
         translated_count: 3688,
-        translations_url: "https://translations.telegram.org/en/",
+        translations_url: "https://translations.telegram.org/zh/",
         _: "langPackLanguage"
       })
       const rendered: Set<string> = new Set();
